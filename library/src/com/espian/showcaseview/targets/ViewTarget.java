@@ -3,6 +3,7 @@ package com.espian.showcaseview.targets;
 import android.app.Activity;
 import android.graphics.Point;
 import android.view.View;
+import android.view.ViewParent;
 
 public class ViewTarget implements Target {
 
@@ -15,6 +16,14 @@ public class ViewTarget implements Target {
     public ViewTarget(int viewId, Activity activity) {
         mView = activity.findViewById(viewId);
     }
+    
+    public ViewParent getParent() {
+    	return mView.getParent();
+    }
+    
+    public boolean isParent(ViewTarget child) {
+    	return child.getParent() == mView;
+	}
 
     @Override
     public Point getPoint() {

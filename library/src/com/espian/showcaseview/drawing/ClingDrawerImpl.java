@@ -21,14 +21,17 @@ public class ClingDrawerImpl implements ClingDrawer {
     private Paint mEraser;
     private Drawable mShowcaseDrawable;
     private Rect mShowcaseRect;
+	private boolean drawBleachedCling;
+	private float radius;
 
-    public ClingDrawerImpl(Resources resources, int showcaseColor) {
-        PorterDuffXfermode mBlender = new PorterDuffXfermode(PorterDuff.Mode.CLEAR);
+    public ClingDrawerImpl(Resources resources, int showcaseColor, boolean drawBleachedCling) {
+		PorterDuffXfermode mBlender = new PorterDuffXfermode(PorterDuff.Mode.CLEAR);
         mEraser = new Paint();
         mEraser.setColor(0xFFFFFF);
         mEraser.setAlpha(0);
         mEraser.setXfermode(mBlender);
         mEraser.setAntiAlias(true);
+        this.drawBleachedCling = drawBleachedCling;
 
         mShowcaseDrawable = resources.getDrawable(R.drawable.cling_bleached);
         mShowcaseDrawable.setColorFilter(showcaseColor, PorterDuff.Mode.MULTIPLY);
@@ -36,6 +39,8 @@ public class ClingDrawerImpl implements ClingDrawer {
 
     @Override
     public void drawShowcase(Canvas canvas, float x, float y, float scaleMultiplier, float radius) {
+        this.radius = radius;
+		
         Matrix mm = new Matrix();
         mm.postScale(scaleMultiplier, scaleMultiplier, x, y);
         canvas.setMatrix(mm);
@@ -45,7 +50,9 @@ public class ClingDrawerImpl implements ClingDrawer {
         }
 
         mShowcaseDrawable.setBounds(mShowcaseRect);
-        mShowcaseDrawable.draw(canvas);
+        if (drawBleachedCling) {
+        	mShowcaseDrawable.draw(canvas);
+        }
 
         canvas.setMatrix(new Matrix());
     }
@@ -67,7 +74,6 @@ public class ClingDrawerImpl implements ClingDrawer {
      * @return true if voidedArea has changed, false otherwise.
      */
     public boolean calculateShowcaseRect(float x, float y) {
-
         if (mShowcaseRect == null) {
             mShowcaseRect = new Rect();
         }
@@ -80,7 +86,7 @@ public class ClingDrawerImpl implements ClingDrawer {
             return false;
         }
 
-        Log.d("ShowcaseView", "Recalculated");
+        Log.d("ShowcaseView", "Showcase Rect area recalculated");
 
         mShowcaseRect.left = cx - dw / 2;
         mShowcaseRect.top = cy - dh / 2;
@@ -90,6 +96,11 @@ public class ClingDrawerImpl implements ClingDrawer {
         return true;
 
     }
+    
+    @Override
+    public float getRadius() {
+		return radius;
+	}
 
     @Override
     public Rect getShowcaseRect() {

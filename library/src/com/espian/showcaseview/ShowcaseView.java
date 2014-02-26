@@ -12,6 +12,8 @@ import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Region.Op;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -28,24 +30,33 @@ import android.widget.RelativeLayout;
 import com.espian.showcaseview.actionbar.ActionBarViewWrapper;
 import com.espian.showcaseview.actionbar.reflection.BaseReflector;
 import com.espian.showcaseview.anim.AnimationUtils;
+import com.espian.showcaseview.anim.AnimationUtils.AnimationEndListener;
+import com.espian.showcaseview.anim.AnimationUtils.AnimationStartListener;
 import com.espian.showcaseview.drawing.ClingDrawer;
 import com.espian.showcaseview.drawing.ClingDrawerImpl;
 import com.espian.showcaseview.drawing.TextDrawer;
 import com.espian.showcaseview.drawing.TextDrawerImpl;
 import com.espian.showcaseview.targets.Target;
+import com.espian.showcaseview.targets.ViewTarget;
 import com.espian.showcaseview.utils.Calculator;
 import com.espian.showcaseview.utils.PointAnimator;
 import com.github.espiandev.showcaseview.R;
 import com.nineoldandroids.animation.Animator;
-
-import static com.espian.showcaseview.anim.AnimationUtils.AnimationEndListener;
-import static com.espian.showcaseview.anim.AnimationUtils.AnimationStartListener;
+import com.nineoldandroids.animation.Animator.AnimatorListener;
 
 /**
  * A view which allows you to showcase areas of your app with an explanation.
  */
 public class ShowcaseView extends RelativeLayout
         implements View.OnClickListener, View.OnTouchListener {
+	
+	public enum OffsetOrientation {
+		HORIZONTAL, VERTICAL;
+	}
+	
+	public interface OnTargetChangeListener {
+		void onMoveCompleted();
+	}
 
     public static final int TYPE_NO_LIMIT = 0;
     public static final int TYPE_ONE_SHOT = 1;
@@ -59,20 +70,21 @@ public class ShowcaseView extends RelativeLayout
     public static final int ITEM_ACTION_ITEM = 3;
     public static final int ITEM_ACTION_OVERFLOW = 6;
 
+    private static final String DEFAULT_SHOWCASE_COLOR = "#33B5E5";
     protected static final String PREFS_SHOWCASE_INTERNAL = "showcase_internal";
     public static final int INNER_CIRCLE_RADIUS = 94;
     private static final Interpolator INTERPOLATOR = new AccelerateDecelerateInterpolator();
 
+    private OnTargetChangeListener targetChangeListener;
     private int showcaseX = -1;
     private int showcaseY = -1;
     private float showcaseRadius = -1;
     private float metricScale = 1.0f;
-    private float legacyShowcaseX = -1;
-    private float legacyShowcaseY = -1;
     private boolean isRedundant = false;
     private boolean hasCustomClickListener = false;
     private ConfigOptions mOptions;
     private int mBackgroundColor;
+    private int mShowcaseColor;
     private View mHandy;
     private final Button mEndButton;
     OnShowcaseEventListener mEventListener = OnShowcaseEventListener.NONE;
@@ -92,6 +104,10 @@ public class ShowcaseView extends RelativeLayout
     };
 
     private boolean mHasNoTarget = false;
+	private int mEndButtonPaddingLeft;
+	private int mEndButtonPaddingRight;
+	private int mEndButtonPaddingTop;
+	private int mEndButtonPaddingBottom;
 
     protected ShowcaseView(Context context) {
         this(context, null, R.styleable.CustomTheme_showcaseViewStyle);
@@ -99,15 +115,16 @@ public class ShowcaseView extends RelativeLayout
 
     protected ShowcaseView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-
+        
         // Get the attributes for the ShowcaseView
         final TypedArray styled = context.getTheme()
                 .obtainStyledAttributes(attrs, R.styleable.ShowcaseView, R.attr.showcaseViewStyle,
                         R.style.ShowcaseView);
         mBackgroundColor = styled
                 .getInt(R.styleable.ShowcaseView_sv_backgroundColor, Color.argb(128, 80, 80, 80));
-        int showcaseColor = styled
-                .getColor(R.styleable.ShowcaseView_sv_showcaseColor, Color.parseColor("#33B5E5"));
+		mShowcaseColor = styled.getColor(
+				R.styleable.ShowcaseView_sv_showcaseColor,
+				Color.parseColor(DEFAULT_SHOWCASE_COLOR));
 
         int titleTextAppearance = styled
                 .getResourceId(R.styleable.ShowcaseView_sv_titleTextAppearance,
@@ -117,22 +134,29 @@ public class ShowcaseView extends RelativeLayout
                         R.style.TextAppearance_ShowcaseView_Detail);
 
         buttonText = styled.getString(R.styleable.ShowcaseView_sv_buttonText);
-        styled.recycle();
 
         metricScale = getContext().getResources().getDisplayMetrics().density;
         mEndButton = (Button) LayoutInflater.from(context).inflate(R.layout.showcase_button, null);
 
-        mShowcaseDrawer = new ClingDrawerImpl(getResources(), showcaseColor);
+        mEndButtonPaddingLeft = mEndButton.getPaddingLeft();
+        mEndButtonPaddingRight = mEndButton.getPaddingRight();
+        mEndButtonPaddingTop = mEndButton.getPaddingTop();
+        mEndButtonPaddingBottom = mEndButton.getPaddingBottom();
+        
+        boolean drawBleachedCling = styled.getBoolean(R.styleable.ShowcaseView_sv_drawBleachedCling, true);
+        mShowcaseDrawer = new ClingDrawerImpl(getResources(), mShowcaseColor, drawBleachedCling);
 
         // TODO: This isn't ideal, ClingDrawer and Calculator interfaces should be separate
-        mTextDrawer = new TextDrawerImpl(metricScale, mShowcaseDrawer);
+        int densityDpi = getResources().getDisplayMetrics().densityDpi;
+        mTextDrawer = new TextDrawerImpl(metricScale, densityDpi, mShowcaseDrawer);
         mTextDrawer.setTitleStyling(context, titleTextAppearance);
         mTextDrawer.setDetailStyling(context, detailTextAppearance);
-
+        
         ConfigOptions options = new ConfigOptions();
         options.showcaseId = getId();
         setConfigOptions(options);
 
+        styled.recycle();
         init();
     }
 
@@ -155,7 +179,7 @@ public class ShowcaseView extends RelativeLayout
         if (!mOptions.noButton && mEndButton.getParent() == null) {
             RelativeLayout.LayoutParams lps = getConfigOptions().buttonLayoutParams;
             if (lps == null) {
-                lps = (LayoutParams) generateDefaultLayoutParams();
+            	lps = (LayoutParams) generateDefaultLayoutParams();
                 lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
                 lps.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
                 int margin = ((Number) (metricScale * 12)).intValue();
@@ -171,7 +195,18 @@ public class ShowcaseView extends RelativeLayout
         }
 
     }
-
+    
+    public void setButtonLayoutParams(RelativeLayout.LayoutParams params) {
+    	if (mEndButton != null) {
+    		mEndButton.setLayoutParams(params);
+    	}
+	}
+    
+    public void setOnTargetChangeListener(
+			OnTargetChangeListener targetChangeListener) {
+		this.targetChangeListener = targetChangeListener;
+	}
+    
     /**
      * @deprecated Use setShowcase() with the target ShowcaseView.NONE
      */
@@ -229,23 +264,69 @@ public class ShowcaseView extends RelativeLayout
         showcaseY = y;
         //init();
         invalidate();
-    }
-
-    public void setShowcase(final Target target) {
-        setShowcase(target, false);
+        
+        if (this.targetChangeListener != null) {
+        	this.targetChangeListener.onMoveCompleted();
+        }
+        
     }
 
     public void setShowcase(final Target target, final boolean animate) {
+    	setShowcase(target, animate, null, null);
+    }
+    
+    public void setShowcase(final Target target, ViewTarget subView, OffsetOrientation orientation) {
+        setShowcase(target, false, subView, orientation);
+    }
+    
+    public void setShowcase(final Target target, final boolean animate, final ViewTarget subView, final OffsetOrientation offsetOrientation) {
         postDelayed(new Runnable() {
             @Override
             public void run() {
                 Point targetPoint = target.getPoint();
                 if (targetPoint != null) {
                     mHasNoTarget = false;
+                    
+                    if (subView != null && offsetOrientation != null) {
+                    	if (target instanceof ViewTarget) {
+                        	ViewTarget parentView = (ViewTarget) target;
+                        	if (!parentView.isParent(subView)) {
+                        		throw new RuntimeException("Target is not parent of given subview");
+                        	} else {
+                        		Point subviewCenter = subView.getPoint();
+                        		
+                        		if (offsetOrientation == OffsetOrientation.HORIZONTAL) {
+                        			Integer offsetX = subviewCenter.x - targetPoint.x;
+                        			targetPoint.set(targetPoint.x + offsetX, targetPoint.y);
+                        		} else if (offsetOrientation == OffsetOrientation.VERTICAL) {
+                        			Integer offsetY = subviewCenter.y - targetPoint.y;
+                        			targetPoint.set(targetPoint.x, targetPoint.y + offsetY);
+                        		}
+                        	}
+                        }
+                    }
+                    
                     if (animate) {
                         Animator animator = PointAnimator.ofPoints(ShowcaseView.this, targetPoint);
                         animator.setDuration(getConfigOptions().fadeInDuration);
                         animator.setInterpolator(INTERPOLATOR);
+                        animator.addListener(new AnimatorListener() {
+							@Override
+							public void onAnimationStart(Animator arg0) { }
+							
+							@Override
+							public void onAnimationRepeat(Animator arg0) { }
+							
+							@Override
+							public void onAnimationEnd(Animator arg0) {
+								if (targetChangeListener != null) {
+						        	targetChangeListener.onMoveCompleted();
+						        }
+							}
+							
+							@Override
+							public void onAnimationCancel(Animator arg0) { }
+						});
                         animator.start();
                     } else {
                         setShowcasePosition(targetPoint);
@@ -311,7 +392,7 @@ public class ShowcaseView extends RelativeLayout
                         }
                         break;
                     default:
-                        Log.e("TAG", "Unknown item type");
+                        Log.e("ShowcaseView Library", "Unknown item type");
                 }
             }
         });
@@ -357,6 +438,35 @@ public class ShowcaseView extends RelativeLayout
             mEndButton.setText(text);
         }
     }
+    
+    @SuppressWarnings("deprecation")
+	public void setButtonBackground(Drawable background) {
+    	if (mEndButton != null) {
+    		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+    			mEndButton.setBackground(background);
+    		} else {
+    			mEndButton.setBackgroundDrawable(background);
+    		}
+			mEndButton.setPadding(mEndButtonPaddingLeft, mEndButtonPaddingTop,
+					mEndButtonPaddingRight, mEndButtonPaddingBottom);
+        }
+    }
+    
+    public void setShowcaseRadius(float showcaseRadius) {
+		this.showcaseRadius = metricScale * showcaseRadius;
+	}
+    
+    public void setTextTypeface(Typeface typeface) {
+    	if (mTextDrawer != null) {
+    		mTextDrawer.setTypeface(typeface);
+    	}
+    }
+    
+    public void setTextPosition(Integer position) {
+    	if (mTextDrawer != null) {
+    		mTextDrawer.setForceTextPosition(position);
+    	}
+    }
 
     public void setHardwareAccelerated(boolean accelerated) {
         if (accelerated) {
@@ -390,7 +500,7 @@ public class ShowcaseView extends RelativeLayout
         boolean recalculatedCling = mShowcaseDrawer.calculateShowcaseRect(showcaseX, showcaseY);
         boolean recalculateText = recalculatedCling || mAlteredText;
         mAlteredText = false;
-
+        
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.HONEYCOMB && !mHasNoTarget) {
         	Path path = new Path();
             path.addCircle(showcaseX, showcaseY, showcaseRadius, Path.Direction.CW);
@@ -400,16 +510,18 @@ public class ShowcaseView extends RelativeLayout
         //Draw background color
         canvas.drawColor(mBackgroundColor);
 
+        float showcaseBottom = showcaseY + showcaseRadius;
         // Draw the showcase drawable
         if (!mHasNoTarget) {
             mShowcaseDrawer.drawShowcase(canvas, showcaseX, showcaseY, scaleMultiplier, showcaseRadius);
         }
 
-        // Draw the text on the screen, recalculating its position if necessary
+        // recalculate text position if necessary
         if (recalculateText) {
             mTextDrawer.calculateTextPosition(canvas.getWidth(), canvas.getHeight(), this);
         }
-        mTextDrawer.draw(canvas, recalculateText);
+        // Draw the text on the screen
+        mTextDrawer.draw(canvas, recalculateText, showcaseBottom);
 
         super.dispatchDraw(canvas);
 
@@ -519,7 +631,6 @@ public class ShowcaseView extends RelativeLayout
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-
         float xDelta = Math.abs(motionEvent.getRawX() - showcaseX);
         float yDelta = Math.abs(motionEvent.getRawY() - showcaseY);
         double distanceFromFocus = Math.sqrt(Math.pow(xDelta, 2) + Math.pow(yDelta, 2));
@@ -821,7 +932,8 @@ public class ShowcaseView extends RelativeLayout
      * Internal insert method so all inserts are routed through one method
      */
     private static ShowcaseView insertShowcaseViewInternal(Target target, Activity activity, String title,
-                                                           String detail, ConfigOptions options) {
+                                                           String detail, ConfigOptions options,
+                                                           ViewTarget subView, OffsetOrientation orientation) {
         ShowcaseView sv = new ShowcaseView(activity);
         sv.setConfigOptions(options);
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
@@ -829,29 +941,34 @@ public class ShowcaseView extends RelativeLayout
         } else {
             ((ViewGroup) activity.findViewById(android.R.id.content)).addView(sv);
         }
-        sv.setShowcase(target);
+        
+        sv.setShowcase(target, subView, orientation);
         sv.setText(title, detail);
         return sv;
     }
 
     public static ShowcaseView insertShowcaseView(Target target, Activity activity) {
-        return insertShowcaseViewInternal(target, activity, null, null, null);
+        return insertShowcaseViewInternal(target, activity, null, null, null, null, null);
     }
-
+    
     public static ShowcaseView insertShowcaseView(Target target, Activity activity, String title, String detail) {
-        return insertShowcaseViewInternal(target, activity, title, detail, null);
+        return insertShowcaseViewInternal(target, activity, title, detail, null, null, null);
     }
 
     public static ShowcaseView insertShowcaseView(Target target, Activity activity, int title, int detail) {
-        return insertShowcaseViewInternal(target, activity, activity.getString(title), activity.getString(detail), null);
+        return insertShowcaseViewInternal(target, activity, activity.getString(title), activity.getString(detail), null, null, null);
     }
 
     public static ShowcaseView insertShowcaseView(Target target, Activity activity, String title, String detail, ConfigOptions options) {
-        return insertShowcaseViewInternal(target, activity, title, detail, options);
+        return insertShowcaseViewInternal(target, activity, title, detail, options, null, null);
+    }
+    
+    public static ShowcaseView insertShowcaseView(Target target, Activity activity, String title, String detail, ViewTarget subview, OffsetOrientation orientation, ConfigOptions options) {
+    	return insertShowcaseViewInternal(target, activity, title, detail, options, subview, orientation);
     }
 
     public static ShowcaseView insertShowcaseView(Target target, Activity activity, int title, int detail, ConfigOptions options) {
-        return insertShowcaseViewInternal(target, activity, activity.getString(title), activity.getString(detail), options);
+        return insertShowcaseViewInternal(target, activity, activity.getString(title), activity.getString(detail), options, null, null);
     }
 
     public static class ConfigOptions {
