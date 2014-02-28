@@ -631,10 +631,14 @@ public class ShowcaseView extends RelativeLayout
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        float xDelta = Math.abs(motionEvent.getRawX() - showcaseX);
+    	if (mOptions.blockAll) {
+    		return true;
+    	}
+    	
+    	float xDelta = Math.abs(motionEvent.getRawX() - showcaseX);
         float yDelta = Math.abs(motionEvent.getRawY() - showcaseY);
         double distanceFromFocus = Math.sqrt(Math.pow(xDelta, 2) + Math.pow(yDelta, 2));
-
+        
         if (MotionEvent.ACTION_UP == motionEvent.getAction() &&
             mOptions.hideOnClickOutside && distanceFromFocus > showcaseRadius) {
             this.hide();
@@ -973,7 +977,7 @@ public class ShowcaseView extends RelativeLayout
 
     public static class ConfigOptions {
 
-        public boolean block = true, noButton = false;
+        public boolean blockAll = true, block = true, noButton = false;
         public boolean hideOnClickOutside = false;
 
         /**

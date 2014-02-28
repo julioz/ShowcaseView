@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
 		final ViewTarget targetTextView = new ViewTarget(tvNewCharge);
 		
 		ShowcaseView.ConfigOptions co = new ShowcaseView.ConfigOptions();
-		co.block = true;
+		co.blockAll = true;
 		
 		showcaseView = ShowcaseView.insertShowcaseView(targetLayout, this, "Nova Recarga", "Acesse a área Nova Recarga para recarregar números próprios, de parentes ou amigos.", targetTextView, OffsetOrientation.HORIZONTAL, co);
 		showcaseView.setButtonText("Ok, entendi!");
