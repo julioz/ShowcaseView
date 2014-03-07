@@ -163,16 +163,6 @@ public class ShowcaseView extends RelativeLayout
     private void init() {
         setHardwareAccelerated(true);
 
-        boolean hasShot = getContext()
-                .getSharedPreferences(PREFS_SHOWCASE_INTERNAL, Context.MODE_PRIVATE)
-                .getBoolean("hasShot" + getConfigOptions().showcaseId, false);
-        if (hasShot && mOptions.shotType == TYPE_ONE_SHOT) {
-            // The showcase has already been shot once, so we don't need to do anything
-            setVisibility(View.GONE);
-            isRedundant = true;
-            return;
-        }
-
         showcaseRadius = metricScale * INNER_CIRCLE_RADIUS;
         setOnTouchListener(this);
 
@@ -193,7 +183,21 @@ public class ShowcaseView extends RelativeLayout
             }
             addView(mEndButton);
         }
+    }
+    
+    private boolean configureVisibility() {
+        boolean hasShot = getContext()
+                .getSharedPreferences(PREFS_SHOWCASE_INTERNAL, Context.MODE_PRIVATE)
+                .getBoolean("hasShot" + getConfigOptions().showcaseId, false);
+        Log.e("ShowCaseView", "o id que chequei pro hasShot eh " + getConfigOptions().showcaseId);
+        if (hasShot && mOptions.shotType == TYPE_ONE_SHOT) {
+            // The showcase has already been shot once, so we don't need to do anything
+            setVisibility(View.GONE);
+            isRedundant = true;
+            return false;
+        }
 
+        return true;
     }
     
     public void setButtonLayoutParams(RelativeLayout.LayoutParams params) {
@@ -570,7 +574,12 @@ public class ShowcaseView extends RelativeLayout
     @Override
     public void onClick(View view) {
         // If the type is set to one-shot, store that it has shot
-        if (mOptions.shotType == TYPE_ONE_SHOT) {
+        checkOneShotCondition();
+        hide();
+    }
+
+	private void checkOneShotCondition() {
+		if (getConfigOptions().shotType == TYPE_ONE_SHOT) {
             SharedPreferences internal = getContext()
                     .getSharedPreferences(PREFS_SHOWCASE_INTERNAL, Context.MODE_PRIVATE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
@@ -580,10 +589,10 @@ public class ShowcaseView extends RelativeLayout
                         .commit();
             }
         }
-        hide();
-    }
+	}
 
     public void hide() {
+    	checkOneShotCondition();
         mEventListener.onShowcaseViewHide(this);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB
@@ -606,6 +615,10 @@ public class ShowcaseView extends RelativeLayout
     }
 
     public void show() {
+    	if (!configureVisibility()) {
+    		return;
+    	}
+    	
         mEventListener.onShowcaseViewShow(this);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB
                 && getConfigOptions().fadeInDuration > 0) {
@@ -752,6 +765,9 @@ public class ShowcaseView extends RelativeLayout
         if (options != null) {
             sv.setConfigOptions(options);
         }
+        if (!sv.configureVisibility()) {
+        	return sv;
+        }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
         } else {
@@ -779,6 +795,9 @@ public class ShowcaseView extends RelativeLayout
         ShowcaseView sv = new ShowcaseView(activity);
         if (options != null) {
             sv.setConfigOptions(options);
+        }
+        if (!sv.configureVisibility()) {
+        	return sv;
         }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
@@ -826,6 +845,9 @@ public class ShowcaseView extends RelativeLayout
         if (options != null) {
             sv.setConfigOptions(options);
         }
+        if (!sv.configureVisibility()) {
+        	return sv;
+        }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
         } else {
@@ -845,6 +867,9 @@ public class ShowcaseView extends RelativeLayout
         ShowcaseView sv = new ShowcaseView(activity);
         if (options != null) {
             sv.setConfigOptions(options);
+        }
+        if (!sv.configureVisibility()) {
+        	return sv;
         }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
@@ -884,6 +909,9 @@ public class ShowcaseView extends RelativeLayout
         if (options != null) {
             sv.setConfigOptions(options);
         }
+        if (!sv.configureVisibility()) {
+        	return sv;
+        }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
         } else {
@@ -913,6 +941,9 @@ public class ShowcaseView extends RelativeLayout
         if (options != null) {
             sv.setConfigOptions(options);
         }
+        if (!sv.configureVisibility()) {
+        	return sv;
+        }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
         } else {
@@ -936,6 +967,9 @@ public class ShowcaseView extends RelativeLayout
                                                            ViewTarget subView, OffsetOrientation orientation) {
         ShowcaseView sv = new ShowcaseView(activity);
         sv.setConfigOptions(options);
+        if (!sv.configureVisibility()) {
+        	return sv;
+        }
         if (sv.getConfigOptions().insert == INSERT_TO_DECOR) {
             ((ViewGroup) activity.getWindow().getDecorView()).addView(sv);
         } else {
