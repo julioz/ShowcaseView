@@ -452,10 +452,6 @@ public class ShowcaseView extends RelativeLayout
         }
     }
     
-    public void setShowcaseRadius(float showcaseRadius) {
-		this.showcaseRadius = metricScale * showcaseRadius;
-	}
-    
     public void setTextTypeface(Typeface typeface) {
     	if (mTextDrawer != null) {
     		mTextDrawer.setTypeface(typeface);
@@ -510,7 +506,7 @@ public class ShowcaseView extends RelativeLayout
         //Draw background color
         canvas.drawColor(mBackgroundColor);
 
-        float showcaseBottom = showcaseY + showcaseRadius;
+        float showcaseBottom = showcaseY + (showcaseRadius * scaleMultiplier); //TODO
         // Draw the showcase drawable
         if (!mHasNoTarget) {
             mShowcaseDrawer.drawShowcase(canvas, showcaseX, showcaseY, scaleMultiplier, showcaseRadius);

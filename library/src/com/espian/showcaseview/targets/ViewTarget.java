@@ -22,7 +22,10 @@ public class ViewTarget implements Target {
     }
     
     public boolean isParent(ViewTarget child) {
-    	return child.getParent() == mView;
+    	// TODO check deeper in viewtree
+    	//return child.getParent() == mView;
+    	
+    	return true;
 	}
 
     @Override

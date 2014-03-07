@@ -35,7 +35,7 @@
         <item name="sv_backgroundColor">#C0000000</item>
         <item name="sv_buttonText">@string/ok</item>
         <item name="sv_showcaseColor">#FF000000</item>
-        <item name="sv_drawBleachedCling">false</item>
+        <item name="sv_drawBleachedCling">true</item>
     </style>
 
 </resources>

@@ -47,7 +47,7 @@ public class MainActivity extends Activity {
 		showcaseView.setButtonText("Ok, entendi!");
 		showcaseView.setTextTypeface(Typeface.createFromAsset(getAssets(), "Roboto-Regular.ttf"));
 		
-		RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.FILL_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+		RelativeLayout.LayoutParams lps = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
 		lps.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
 		lps.addRule(RelativeLayout.CENTER_HORIZONTAL);
 		int margin = ((Number) (getResources().getDisplayMetrics().density * 12)).intValue();
@@ -65,19 +65,13 @@ public class MainActivity extends Activity {
                         showcaseView.setOnTargetChangeListener(new OnTargetChangeListener() {
 							@Override
 							public void onMoveCompleted() {
-								showcaseView.setShowcaseRadius(25);
+								showcaseView.setScaleMultiplier(0.3f);
 							}
 						});
                         showcaseView.setShowcase(targetIcon, false);
                         break;
                     case 1:
                         showcaseView.setText("Menu", "Agora você pode acessar o menu para gerenciar seus cartões de crédito, números cadastrados e recargas agendadas!");
-                        showcaseView.setOnTargetChangeListener(new OnTargetChangeListener() {
-							@Override
-							public void onMoveCompleted() {
-								showcaseView.setShowcaseRadius(35);
-							}
-						});
                         ActionViewTarget target = new ActionViewTarget(MainActivity.this, ActionViewTarget.Type.OVERFLOW);
                         showcaseView.setShowcase(target, true);
                     	break;
